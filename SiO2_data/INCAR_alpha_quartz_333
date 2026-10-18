@@ -1,0 +1,24 @@
+SYSTEM = Bulk SiO2 (Static SCF)
+
+# Static Calculation (No Ionic Steps)
+NSW    = 0          # 0 = No ionic steps (single-point SCF energy only)
+IBRION = -1         # -1 = Ions are not moved
+
+# Electronic Minimization
+PREC   = Accurate
+ENCUT  = 500
+EDIFF  = 1E-6
+
+# Smearing (Gaussian smearing for insulator)
+ISMEAR = 0
+SIGMA  = 0.05
+
+# Projection scheme (Auto is strongly recommended for >20 atoms)
+LREAL  = Auto
+
+# Output Control
+LWAVE  = .FALSE.
+LCHARG = .FALSE.
+
+# Parallelization
+NCORE  = 4

@@ -1,28 +1,14 @@
 # this script generates configurations based on alpha-quartz
 
 from pymatgen.core import Structure
-in_file_name="POSCAR_alpha_quartz333"
+
 import numpy as np
-
-# 1. Load the structure
-structure = Structure.from_file(in_file_name)
-# -----------------------------------------------------------------
-# 2. Get the 3 basis vectors (Lattice Vectors)
-# -----------------------------------------------------------------
-# lattice.matrix is a 3x3 numpy array where each row is a vector: [a, b, c]
-lattice_matrix = structure.lattice.matrix
-
-a_vec = lattice_matrix[0]  # vector a
-b_vec = lattice_matrix[1]  # vector b
-c_vec = lattice_matrix[2]  # vector c
+from pymatgen.core import Lattice
 
 
-# -----------------------------------------------------------------
-# 3. Get all atomic coordinates (as full Nx3 arrays)
-# -----------------------------------------------------------------
-# Fractional coordinates (Direct, dimensionless [0, 1)):
 
-frac_coords = structure.frac_coords
+
+
 
 def perturb_lattice(structure: Structure, eps_max: float = 0.1) -> Structure:
     # 1. Generate 3x3 matrix of random epsilons
@@ -41,4 +27,174 @@ def perturb_lattice(structure: Structure, eps_max: float = 0.1) -> Structure:
         coords_are_cartesian=False,
     )
 
-st1=perturb_lattice(structure,0.1)
+
+
+def increase_length(
+        structure: Structure,
+        length_eps_max: float = 0.1,
+        frac_eps_max: float = 0.02,
+        min_atom_dist: float = 1.0,
+) -> Structure:
+    """Expands lattice vector lengths (a, b, c) by up to +length_eps_max and
+
+    randomly perturbs atomic positions while preventing collisions (d >= min_atom_dist).
+    """
+    # 1. Expand lattice parameters
+    a, b, c, alpha, beta, gamma = structure.lattice.parameters
+    length_eps_vec = np.random.uniform(0, length_eps_max, size=3)
+    a_new = a * (1.0 + length_eps_vec[0])
+    b_new = b * (1.0 + length_eps_vec[1])
+    c_new = c * (1.0 + length_eps_vec[2])
+
+    # 2. Build the new expanded Lattice object
+    new_lattice = Lattice.from_parameters(
+        a_new, b_new, c_new, alpha, beta, gamma
+    )
+
+    # 3. Resample fractional coordinates until no atoms collide
+    frac_coords = structure.frac_coords
+    while True:
+        frac_displacement = np.random.uniform(
+            -frac_eps_max, frac_eps_max, size=frac_coords.shape
+        )
+        frac_coords_new = (frac_coords + frac_displacement) % 1.0
+
+        perturbed_struct = Structure(
+            lattice=new_lattice,
+            species=structure.species,
+            coords=frac_coords_new,
+            coords_are_cartesian=False,
+            to_unit_cell=True,
+        )
+
+        dists = perturbed_struct.distance_matrix[
+            np.triu_indices(len(perturbed_struct), k=1)
+        ]
+        if np.min(dists) >= min_atom_dist:
+            return perturbed_struct
+
+
+def decrease_length(
+        structure: Structure,
+        length_eps_max: float = 0.1,
+        frac_eps_max: float = 0.02,
+        min_atom_dist: float = 1.0,
+) -> Structure:
+    """Compresses lattice vector lengths (a, b, c) by up to -length_eps_max and
+
+    randomly perturbs atomic positions while preventing collisions (d >= min_atom_dist).
+    """
+    # 1. Compress lattice parameters
+    a, b, c, alpha, beta, gamma = structure.lattice.parameters
+    length_eps_vec = np.random.uniform(-length_eps_max, 0, size=3)
+    a_new = a * (1.0 + length_eps_vec[0])
+    b_new = b * (1.0 + length_eps_vec[1])
+    c_new = c * (1.0 + length_eps_vec[2])
+
+    # 2. Build the new compressed Lattice object
+    new_lattice = Lattice.from_parameters(
+        a_new, b_new, c_new, alpha, beta, gamma
+    )
+
+    # 3. Resample fractional coordinates until no atoms collide
+    frac_coords = structure.frac_coords
+    while True:
+        frac_displacement = np.random.uniform(
+            -frac_eps_max, frac_eps_max, size=frac_coords.shape
+        )
+        frac_coords_new = (frac_coords + frac_displacement) % 1.0
+
+        perturbed_struct = Structure(
+            lattice=new_lattice,
+            species=structure.species,
+            coords=frac_coords_new,
+            coords_are_cartesian=False,
+            to_unit_cell=True,
+        )
+
+        dists = perturbed_struct.distance_matrix[
+            np.triu_indices(len(perturbed_struct), k=1)
+        ]
+        if np.min(dists) >= min_atom_dist:
+            return perturbed_struct
+
+def perturb_all(
+        structure: Structure,
+        length_eps_max: float = 0.1,
+        frac_eps_max: float = 0.02,  # Recommended: 0.01 - 0.02 for ~0.1 - 0.3 Å
+        angle_eps_max: float = 0.05,
+        min_atom_dist: float = 1.0,  # Minimum allowed interatomic distance in Å
+) -> Structure:
+    """Perturbs cell lengths, cell angles, and atomic positions without allowing
+
+    any two atoms to collide (d >= min_atom_dist).
+    """
+    a, b, c, alpha, beta, gamma = structure.lattice.parameters
+
+    # 1. Perturb cell lengths
+    length_eps_vec = np.random.uniform(-length_eps_max, length_eps_max, size=3)
+    a_new = a * (1.0 + length_eps_vec[0])
+    b_new = b * (1.0 + length_eps_vec[1])
+    c_new = c * (1.0 + length_eps_vec[2])
+
+    # 2. Resample angles until a valid 3D lattice is obtained
+    new_lattice = None
+    while True:
+        angle_eps_vec = np.random.uniform(-angle_eps_max, angle_eps_max, size=3)
+        alpha_new = alpha * (1.0 + angle_eps_vec[0])
+        beta_new = beta * (1.0 + angle_eps_vec[1])
+        gamma_new = gamma * (1.0 + angle_eps_vec[2])
+
+        if not (
+                0.0 < alpha_new < 180.0
+                and 0.0 < beta_new < 180.0
+                and 0.0 < gamma_new < 180.0
+        ):
+            continue
+
+        try:
+            cand_lattice = Lattice.from_parameters(
+                a_new, b_new, c_new, alpha_new, beta_new, gamma_new
+            )
+            if cand_lattice.volume > 1e-3 and not np.isnan(cand_lattice.volume):
+                new_lattice = cand_lattice
+                break
+        except (ValueError, ZeroDivisionError):
+            continue
+
+    # 3. Resample fractional coordinates until no atoms overlap
+    frac_coords = structure.frac_coords
+    while True:
+        frac_displacement = np.random.uniform(
+            -frac_eps_max, frac_eps_max, size=frac_coords.shape
+        )
+        frac_coords_new = (frac_coords + frac_displacement) % 1.0
+
+        perturbed_struct = Structure(
+            lattice=new_lattice,
+            species=structure.species,
+            coords=frac_coords_new,
+            coords_are_cartesian=False,
+            to_unit_cell=True,
+        )
+
+        # Check periodic pairwise distance: distance_matrix diagonal is 0,
+        # so we take only the upper triangle (k=1)
+        dists = perturbed_struct.distance_matrix[
+            np.triu_indices(len(perturbed_struct), k=1)
+        ]
+        if np.min(dists) >= min_atom_dist:
+            return perturbed_struct
+
+
+poscar_file_name="POSCAR_alpha_quartz333"
+structure = Structure.from_file(poscar_file_name)
+
+incar_file_name="INCAR_alpha_quartz_333"
+potcar_file_name="POTCAR"
+kpoints_file_name="KPOINTS_alpha_quartz_333"
+
+N_increase=5
+N_decrease=5
+N_perturb_all=5
+out_dir="alpha_quartz"

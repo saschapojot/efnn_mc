@@ -1,8 +1,10 @@
-SYSTEM = Bulk SiO2 (3x3x3 supercell)
+SYSTEM = Bulk SiO2
 
-# Static Calculation
-NSW    = 0
-IBRION = -1
+# Ionic Relaxation Settings
+NSW    = 100        # Maximum number of ionic steps
+IBRION = 2          # 2 = Conjugate gradient algorithm
+ISIF   = 3          # 3 = Relax ions, cell volume, and cell shape (use ISIF = 2 for positions only)
+EDIFFG = -0.02      # Stop relaxation when forces on all atoms < 0.02 eV/Å
 
 # Electronic Minimization
 PREC   = Accurate
@@ -21,4 +23,4 @@ LWAVE  = .FALSE.
 LCHARG = .FALSE.
 
 # Parallelization
-NCORE = 4
+NCORE  = 4
