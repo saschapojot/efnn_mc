@@ -4,28 +4,28 @@ from pymatgen.core import Structure
 
 import numpy as np
 from pymatgen.core import Lattice
+from pathlib import Path
 
 
 
 
 
-
-def perturb_lattice(structure: Structure, eps_max: float = 0.1) -> Structure:
-    # 1. Generate 3x3 matrix of random epsilons
-    eps = np.random.uniform(-eps_max, eps_max, size=(3, 3))
-    print(f"eps={eps}")
-    # 2. Construct ones matrix and add eps to each element: (1 + eps)
-    scale_matrix = np.ones((3, 3)) + eps
-    # 3. Hadamard product (element-wise multiplication '*') with original lattice
-    new_lattice = structure.lattice.matrix * scale_matrix
-    print(f"new_lattice={new_lattice}")
-    # 4. Return new Structure keeping fractional coordinates invariant
-    return Structure(
-        lattice=new_lattice,
-        species=structure.species,
-        coords=structure.frac_coords,
-        coords_are_cartesian=False,
-    )
+# def perturb_lattice(structure: Structure, eps_max: float = 0.1) -> Structure:
+#     # 1. Generate 3x3 matrix of random epsilons
+#     eps = np.random.uniform(-eps_max, eps_max, size=(3, 3))
+#     print(f"eps={eps}")
+#     # 2. Construct ones matrix and add eps to each element: (1 + eps)
+#     scale_matrix = np.ones((3, 3)) + eps
+#     # 3. Hadamard product (element-wise multiplication '*') with original lattice
+#     new_lattice = structure.lattice.matrix * scale_matrix
+#     print(f"new_lattice={new_lattice}")
+#     # 4. Return new Structure keeping fractional coordinates invariant
+#     return Structure(
+#         lattice=new_lattice,
+#         species=structure.species,
+#         coords=structure.frac_coords,
+#         coords_are_cartesian=False,
+#     )
 
 
 
@@ -197,4 +197,175 @@ kpoints_file_name="KPOINTS_alpha_quartz_333"
 N_increase=5
 N_decrease=5
 N_perturb_all=5
-out_dir="alpha_quartz"
+out_dir_base="alpha_quartz"
+
+
+with open(incar_file_name, "r") as f:
+    incar_content = f.read()
+
+with open(potcar_file_name,"r") as f:
+    potcar_content=f.read()
+
+with open(kpoints_file_name,"r") as f:
+    kpoints_content=f.read()
+
+
+
+def gen_dir_increase_length(incar_content,
+                            potcar_content,
+                            kpoints_content,
+                            out_dir_base,
+                            ind,
+                            structure: Structure,
+                            length_eps_max: float = 0.1,
+                            frac_eps_max: float = 0.02,
+                            min_atom_dist: float = 1.0,):
+    """
+
+    Args:
+        incar_content:
+        potcar_content:
+        kpoints_content:
+        out_dir_base:
+        ind:
+
+    Returns:
+
+    """
+    out_dir=out_dir_base+f"/increase_length_{ind}"
+    Path(out_dir).mkdir(exist_ok=True,parents=True)
+
+    out_incar_file_name=out_dir+"/INCAR"
+    out_potcar_file_name=out_dir+"/POTCAR"
+    out_kpoints_file_name=out_dir+"/KPOINTS"
+    out_poscar_file_name=out_dir+"/POSCAR"
+
+    new_struct = increase_length(
+        structure,
+        length_eps_max=length_eps_max,
+        frac_eps_max=frac_eps_max,
+        min_atom_dist=min_atom_dist,
+    )
+
+    new_struct.to(filename=out_poscar_file_name, fmt="poscar")
+
+    Path(out_incar_file_name).write_text(incar_content)
+    Path(out_potcar_file_name).write_text(potcar_content)
+    Path(out_kpoints_file_name).write_text(kpoints_content)
+
+    print(f"Generated: {out_dir}")
+    return out_dir
+
+
+
+def gen_dir_decrease_length(
+        incar_content: str,
+        potcar_content: str,
+        kpoints_content: str,
+        out_dir_base: str,
+        ind: int,
+        structure: Structure,
+        length_eps_max: float = 0.1,
+        frac_eps_max: float = 0.02,
+        min_atom_dist: float = 1.0,
+):
+    out_dir = f"{out_dir_base}/decrease_length_{ind}"
+    Path(out_dir).mkdir(exist_ok=True, parents=True)
+
+    out_incar_file_name = f"{out_dir}/INCAR"
+    out_potcar_file_name = f"{out_dir}/POTCAR"
+    out_kpoints_file_name = f"{out_dir}/KPOINTS"
+    out_poscar_file_name = f"{out_dir}/POSCAR"
+
+    new_struct = decrease_length(
+        structure,
+        length_eps_max=length_eps_max,
+        frac_eps_max=frac_eps_max,
+        min_atom_dist=min_atom_dist,
+    )
+
+    new_struct.to(filename=out_poscar_file_name, fmt="poscar")
+
+    Path(out_incar_file_name).write_text(incar_content)
+    Path(out_potcar_file_name).write_text(potcar_content)
+    Path(out_kpoints_file_name).write_text(kpoints_content)
+
+    print(f"Generated: {out_dir}")
+    return out_dir
+
+
+def gen_dir_perturb_all(
+        incar_content: str,
+        potcar_content: str,
+        kpoints_content: str,
+        out_dir_base: str,
+        ind: int,
+        structure: Structure,
+        length_eps_max: float = 0.1,
+        frac_eps_max: float = 0.02,
+        angle_eps_max: float = 0.05,
+        min_atom_dist: float = 1.0,
+):
+    out_dir = f"{out_dir_base}/perturb_all_{ind}"
+    Path(out_dir).mkdir(exist_ok=True, parents=True)
+
+    out_incar_file_name = f"{out_dir}/INCAR"
+    out_potcar_file_name = f"{out_dir}/POTCAR"
+    out_kpoints_file_name = f"{out_dir}/KPOINTS"
+    out_poscar_file_name = f"{out_dir}/POSCAR"
+
+    new_struct = perturb_all(
+        structure,
+        length_eps_max=length_eps_max,
+        frac_eps_max=frac_eps_max,
+        angle_eps_max=angle_eps_max,
+        min_atom_dist=min_atom_dist,
+    )
+
+    new_struct.to(filename=out_poscar_file_name, fmt="poscar")
+
+    Path(out_incar_file_name).write_text(incar_content)
+    Path(out_potcar_file_name).write_text(potcar_content)
+    Path(out_kpoints_file_name).write_text(kpoints_content)
+
+    print(f"Generated: {out_dir}")
+    return out_dir
+
+# ==============================================================================
+# Run generation loops
+# ==============================================================================
+
+# 1. Generate increase_length configurations
+for i in range(N_increase):
+    gen_dir_increase_length(
+        incar_content=incar_content,
+        potcar_content=potcar_content,
+        kpoints_content=kpoints_content,
+        out_dir_base=out_dir_base,
+        ind=i,
+        structure=structure,
+    )
+
+
+# 2. Generate decrease_length configurations
+for i in range(N_decrease):
+    gen_dir_decrease_length(
+        incar_content=incar_content,
+        potcar_content=potcar_content,
+        kpoints_content=kpoints_content,
+        out_dir_base=out_dir_base,
+        ind=i,
+        structure=structure,
+    )
+
+
+# 3. Generate perturb_all configurations
+for i in range(N_perturb_all):
+    gen_dir_perturb_all(
+        incar_content=incar_content,
+        potcar_content=potcar_content,
+        kpoints_content=kpoints_content,
+        out_dir_base=out_dir_base,
+        ind=i,
+        structure=structure,
+    )
