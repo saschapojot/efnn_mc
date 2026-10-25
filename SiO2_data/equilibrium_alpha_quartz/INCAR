@@ -1,0 +1,25 @@
+SYSTEM = Bulk SiO2 (Structure Relaxation)
+
+# --- Ionic Relaxation Controls ---
+NSW    = 200        # Maximum number of ionic steps
+IBRION = 2          # 2 = Conjugate gradient algorithm (recommended & robust)
+ISIF   = 3          # 3 = Relax ions + cell shape + volume (use 2 for fixed cell)
+EDIFFG = -0.02      # Convergence criterion: stop when all forces < 0.02 eV/Å
+POTIM  = 0.5        # Step-size scaling factor for ionic moves
+
+# --- Electronic Minimization ---
+PREC   = Accurate   # Avoids wrap-around errors
+ENCUT  = 520        # >= 1.3 * ENMAX (400 eV for O) to prevent Pulay stress during ISIF=3
+EDIFF  = 1E-6       # Electronic SCF convergence threshold
+
+# --- Smearing ---
+ISMEAR = 0          # Gaussian smearing (suitable for semiconductors/insulators)
+SIGMA  = 0.05       # Smearing width in eV
+
+# --- Performance & Real Space Projection ---
+LREAL  = Auto       # Recommended for systems with > 20 atoms
+NCORE  = 4          # Parallelization (adjust based on your core count per node)
+
+# --- Output Files ---
+LWAVE  = .FALSE.    # Set to .TRUE. only if you need WAVECAR
+LCHARG = .FALSE.    # Set to .TRUE. only if you need CHGCAR
